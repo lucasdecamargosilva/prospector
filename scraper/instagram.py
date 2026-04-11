@@ -1,66 +1,97 @@
 import argparse
 import json
 import os
-import instaloader
-from config import HASHTAGS, DATA_DIR, LEADS_BRUTOS_PATH
+from apify_client import ApifyClient
+from config import APIFY_TOKEN, DATA_DIR, LEADS_BRUTOS_PATH
+
+SEARCH_QUERIES = [
+    "loja de oculos",
+    "otica online",
+    "oculos de sol loja",
+    "eyewear brasil",
+    "otica oculos grau",
+]
 
 
-def coletar_por_hashtag(hashtag: str, limit: int) -> list[dict]:
-    """Coleta perfis de lojas a partir de posts de uma hashtag."""
-    loader = instaloader.Instaloader()
-    leads = []
-    seen = set()
+def buscar_perfis(client: ApifyClient, query: str, limit: int) -> list[dict]:
+    """Busca perfis de lojas no Instagram via Apify Search Scraper."""
+    print(f"  Buscando: '{query}' (limite: {limit})...")
 
-    print(f"Buscando posts com #{hashtag}...")
-    posts = instaloader.Hashtag.from_name(loader.context, hashtag).get_posts()
+    run_input = {
+        "search": query,
+        "searchType": "user",
+        "resultsLimit": limit,
+    }
 
-    count = 0
-    for post in posts:
-        if count >= limit:
-            break
+    run = client.actor("apify/instagram-search-scraper").call(run_input=run_input)
 
-        profile = post.owner_profile
-        username = profile.username
+    if run["status"] != "SUCCEEDED":
+        print(f"  ERRO: Actor terminou com status {run['status']}")
+        return []
 
-        if username in seen:
-            continue
-        seen.add(username)
+    items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
+    print(f"  {len(items)} perfis encontrados")
+    return items
 
-        # Filtra: so perfis que parecem ser lojas (tem site na bio)
-        site = profile.external_url
-        if not site:
-            continue
 
-        lead = {
-            "instagram": username,
-            "nome_loja": profile.full_name,
-            "site": site,
-            "seguidores": profile.followers,
-        }
-        leads.append(lead)
-        count += 1
-        print(f"  [{count}/{limit}] @{username} — {site} ({profile.followers} seguidores)")
+def extrair_lead(item: dict) -> dict:
+    """Extrai dados relevantes de um resultado do Apify."""
+    # Pega o primeiro URL externo como site
+    site = ""
+    external_urls = item.get("externalUrls") or []
+    if external_urls:
+        site = external_urls[0].get("url", "")
+    if not site:
+        site = item.get("externalUrl", "")
 
-    return leads
+    return {
+        "instagram": item.get("username", ""),
+        "nome_loja": item.get("fullName", ""),
+        "site": site,
+        "seguidores": item.get("followersCount", 0) or item.get("followers", 0),
+        "bio": item.get("biography", ""),
+        "is_business": item.get("isBusinessAccount", False),
+    }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Coleta perfis de lojas de oculos no Instagram")
-    parser.add_argument("--hashtag", type=str, default=None, help="Hashtag especifica para buscar")
-    parser.add_argument("--limit", type=int, default=50, help="Limite de perfis por hashtag")
+    parser = argparse.ArgumentParser(description="Coleta perfis de lojas de oculos no Instagram via Apify")
+    parser.add_argument("--query", type=str, default=None, help="Query especifica para buscar")
+    parser.add_argument("--limit", type=int, default=20, help="Limite de perfis por query")
+    parser.add_argument("--min-seg", type=int, default=5000, help="Minimo de seguidores (default: 5000)")
     args = parser.parse_args()
 
-    hashtags = [args.hashtag] if args.hashtag else HASHTAGS
-    all_leads = []
-    seen_usernames = set()
+    if not APIFY_TOKEN:
+        print("ERRO: APIFY_TOKEN nao definido no .env")
+        return
 
-    for tag in hashtags:
-        leads = coletar_por_hashtag(tag, args.limit)
-        for lead in leads:
-            if lead["instagram"] not in seen_usernames:
-                seen_usernames.add(lead["instagram"])
-                all_leads.append(lead)
+    client = ApifyClient(APIFY_TOKEN)
+    queries = [args.query] if args.query else SEARCH_QUERIES
 
+    all_leads: list[dict] = []
+    seen_usernames: set[str] = set()
+
+    print(f"\nBuscando lojas de oculos no Instagram ({len(queries)} queries)\n")
+
+    for query in queries:
+        items = buscar_perfis(client, query, args.limit)
+
+        for item in items:
+            lead = extrair_lead(item)
+            username = lead["instagram"]
+
+            if not username or username in seen_usernames:
+                continue
+
+            if lead["seguidores"] < args.min_seg:
+                print(f"    - @{username} — {lead['seguidores']} seg. (abaixo de {args.min_seg}, pulando)")
+                continue
+
+            seen_usernames.add(username)
+            all_leads.append(lead)
+            print(f"    + @{username} — {lead['nome_loja']} ({lead['seguidores']} seg.)")
+
+    # Salva resultado
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(LEADS_BRUTOS_PATH, "w", encoding="utf-8") as f:
         json.dump(all_leads, f, ensure_ascii=False, indent=2)
