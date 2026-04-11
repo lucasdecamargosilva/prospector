@@ -62,29 +62,20 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   descartado: "Descartado",
 };
 
-export const STATUS_COLORS: Record<LeadStatus, string> = {
-  novo: "bg-violet-500",
-  dm_enviada: "bg-purple-400",
-  respondeu: "bg-fuchsia-500",
-  interessado: "bg-amber-400",
-  fechou: "bg-emerald-400",
-  descartado: "bg-zinc-500",
+export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; dot: string }> = {
+  novo: { bg: "bg-violet/10", text: "text-violet-light", dot: "bg-violet" },
+  dm_enviada: { bg: "bg-cyan/10", text: "text-cyan", dot: "bg-cyan" },
+  respondeu: { bg: "bg-amber/10", text: "text-amber", dot: "bg-amber" },
+  interessado: { bg: "bg-rose/10", text: "text-rose", dot: "bg-rose" },
+  fechou: { bg: "bg-emerald/10", text: "text-emerald", dot: "bg-emerald" },
+  descartado: { bg: "bg-dim/10", text: "text-dim", dot: "bg-dim" },
 };
 
 export const STATUS_HEX: Record<LeadStatus, string> = {
   novo: "#8b5cf6",
-  dm_enviada: "#a78bfa",
-  respondeu: "#d946ef",
-  interessado: "#fbbf24",
-  fechou: "#34d399",
-  descartado: "#71717a",
-};
-
-export const STATUS_BORDER: Record<LeadStatus, string> = {
-  novo: "border-violet-500/30",
-  dm_enviada: "border-purple-400/30",
-  respondeu: "border-fuchsia-500/30",
-  interessado: "border-amber-400/30",
-  fechou: "border-emerald-400/30",
-  descartado: "border-zinc-500/30",
+  dm_enviada: "#06b6d4",
+  respondeu: "#f59e0b",
+  interessado: "#f43f5e",
+  fechou: "#10b981",
+  descartado: "#52525b",
 };

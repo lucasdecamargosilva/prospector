@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { LEAD_STATUSES, STATUS_LABELS, STATUS_HEX } from "../types";
+import { LEAD_STATUSES, STATUS_LABELS, STATUS_HEX, STATUS_COLORS } from "../types";
 import type { Lead, LeadStatus } from "../types";
 import FunnelChart from "../components/FunnelChart";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -9,144 +9,86 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
+  useEffect(() => { supabase.from("leads").select("*").then(({ data }) => { setLeads(data ?? []); setLoading(false); }); }, []);
 
-  async function fetchLeads() {
-    const { data } = await supabase.from("leads").select("*");
-    setLeads(data ?? []);
-    setLoading(false);
-  }
-
-  const counts = LEAD_STATUSES.reduce(
-    (acc, s) => {
-      acc[s] = leads.filter((l) => l.status === s).length;
-      return acc;
-    },
-    {} as Record<LeadStatus, number>
-  );
+  const counts = LEAD_STATUSES.reduce((acc, s) => { acc[s] = leads.filter((l) => l.status === s).length; return acc; }, {} as Record<LeadStatus, number>);
 
   const dmEnviadas = counts["dm_enviada"] + counts["respondeu"] + counts["interessado"] + counts["fechou"];
   const responderam = counts["respondeu"] + counts["interessado"] + counts["fechou"];
-  const taxaResposta = dmEnviadas > 0 ? ((responderam / dmEnviadas) * 100).toFixed(1) : "0";
+  const taxa = dmEnviadas > 0 ? ((responderam / dmEnviadas) * 100).toFixed(1) : "0";
 
-  const weeklyData = leads.reduce(
-    (acc, lead) => {
-      const date = new Date(lead.created_at);
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      const key = weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      acc[key] = (acc[key] || 0) + 1;
+  const weeklyData = Object.entries(
+    leads.reduce((acc, l) => {
+      const d = new Date(l.created_at);
+      const ws = new Date(d); ws.setDate(d.getDate() - d.getDay());
+      const k = ws.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      acc[k] = (acc[k] || 0) + 1;
       return acc;
-    },
-    {} as Record<string, number>
-  );
+    }, {} as Record<string, number>)
+  ).map(([semana, total]) => ({ semana, total })).slice(-8);
 
-  const chartData = Object.entries(weeklyData)
-    .map(([semana, total]) => ({ semana, total }))
-    .slice(-8);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-violet border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h2 className="font-display text-2xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted text-sm mt-1">Visao geral da prospeccao</p>
+        <h1 className="font-serif text-3xl text-bright italic tracking-tight">Dashboard</h1>
+        <p className="text-dim text-xs mt-1.5 tracking-wide">Visao geral da prospeccao</p>
       </div>
 
-      {/* Metric cards */}
-      <div className="grid grid-cols-3 gap-5 mb-8">
-        <div className="glass rounded-2xl p-5 glow-sm">
-          <p className="text-muted text-xs font-display font-semibold uppercase tracking-wider">Total de Leads</p>
-          <p className="font-display text-4xl font-bold mt-2 bg-gradient-to-r from-accent-bright to-fuchsia-400 bg-clip-text text-transparent">
-            {leads.length}
-          </p>
-        </div>
-        <div className="glass rounded-2xl p-5 glow-sm">
-          <p className="text-muted text-xs font-display font-semibold uppercase tracking-wider">DMs Enviadas</p>
-          <p className="font-display text-4xl font-bold mt-2 bg-gradient-to-r from-purple-300 to-violet-400 bg-clip-text text-transparent">
-            {dmEnviadas}
-          </p>
-        </div>
-        <div className="glass rounded-2xl p-5 glow-sm">
-          <p className="text-muted text-xs font-display font-semibold uppercase tracking-wider">Taxa de Resposta</p>
-          <p className="font-display text-4xl font-bold mt-2 bg-gradient-to-r from-emerald-300 to-teal-400 bg-clip-text text-transparent">
-            {taxaResposta}%
-          </p>
-        </div>
+      {/* Metrics */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          { label: "Total de Leads", value: leads.length, color: "#8b5cf6" },
+          { label: "DMs Enviadas", value: dmEnviadas, color: "#06b6d4" },
+          { label: "Taxa de Resposta", value: `${taxa}%`, color: "#10b981" },
+        ].map((m, i) => (
+          <div key={m.label} className="stagger-in bg-raised border border-edge-subtle rounded-xl p-5" style={{ animationDelay: `${i * 60}ms` }}>
+            <p className="text-[10px] font-semibold text-dim uppercase tracking-widest">{m.label}</p>
+            <p className="text-3xl font-bold mt-2 tabular-nums" style={{ color: m.color }}>{m.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Status breakdown */}
-      <div className="grid grid-cols-6 gap-3 mb-8">
-        {LEAD_STATUSES.map((s) => {
-          const hex = STATUS_HEX[s];
-          return (
-            <div key={s} className="glass rounded-xl p-4 text-center group hover:glow-sm transition-all">
-              <div
-                className="w-3 h-3 rounded-full mx-auto mb-2 status-dot"
-                style={{ background: hex }}
-              />
-              <p className="text-[11px] text-muted font-display">{STATUS_LABELS[s]}</p>
-              <p className="font-display text-xl font-bold mt-0.5" style={{ color: hex }}>
-                {counts[s]}
-              </p>
-            </div>
-          );
-        })}
+      {/* Status grid */}
+      <div className="grid grid-cols-6 gap-2 mb-8">
+        {LEAD_STATUSES.map((s, i) => (
+          <div key={s} className="stagger-in bg-raised border border-edge-subtle rounded-lg p-3 text-center" style={{ animationDelay: `${180 + i * 30}ms` }}>
+            <div className="w-2 h-2 rounded-full mx-auto mb-1.5" style={{ background: STATUS_HEX[s] }} />
+            <p className="text-[9px] text-dim uppercase tracking-widest">{STATUS_LABELS[s]}</p>
+            <p className="text-lg font-bold mt-0.5" style={{ color: STATUS_HEX[s] }}>{counts[s]}</p>
+          </div>
+        ))}
       </div>
 
       {/* Funnel */}
-      <div className="glass rounded-2xl p-6 mb-6 glow-sm">
-        <h3 className="font-display text-xs font-semibold text-muted uppercase tracking-wider mb-5">Funil de Conversao</h3>
+      <div className="bg-raised border border-edge-subtle rounded-xl p-6 mb-6">
+        <p className="text-[10px] font-semibold text-dim uppercase tracking-widest mb-4">Funil</p>
         <FunnelChart counts={counts} />
       </div>
 
-      {/* Weekly chart */}
-      {chartData.length > 0 && (
-        <div className="glass rounded-2xl p-6 glow-sm">
-          <h3 className="font-display text-xs font-semibold text-muted uppercase tracking-wider mb-5">Leads por Semana</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData}>
-              <XAxis
-                dataKey="semana"
-                tick={{ fill: "#7c6f9b", fontSize: 11, fontFamily: "Outfit" }}
-                axisLine={{ stroke: "#2a1f4e" }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#7c6f9b", fontSize: 11, fontFamily: "Outfit" }}
-                axisLine={false}
-                tickLine={false}
-              />
+      {/* Chart */}
+      {weeklyData.length > 0 && (
+        <div className="bg-raised border border-edge-subtle rounded-xl p-6">
+          <p className="text-[10px] font-semibold text-dim uppercase tracking-widest mb-4">Leads por Semana</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={weeklyData}>
+              <XAxis dataKey="semana" tick={{ fill: "#52525b", fontSize: 10, fontFamily: "Satoshi" }} axisLine={{ stroke: "#27272f" }} tickLine={false} />
+              <YAxis tick={{ fill: "#52525b", fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "#140e2a",
-                  border: "1px solid #2a1f4e",
-                  borderRadius: "12px",
-                  boxShadow: "0 0 30px -5px rgba(139,92,246,0.2)",
-                  fontFamily: "Outfit",
-                  fontSize: "12px",
-                }}
-                labelStyle={{ color: "#a99cc8" }}
-                itemStyle={{ color: "#c084fc" }}
+                contentStyle={{ backgroundColor: "#16161a", border: "1px solid #27272f", borderRadius: "8px", fontSize: "11px", fontFamily: "Satoshi" }}
+                labelStyle={{ color: "#71717a" }}
+                itemStyle={{ color: "#a78bfa" }}
               />
-              <Bar
-                dataKey="total"
-                fill="url(#barGradient)"
-                radius={[6, 6, 0, 0]}
-              />
+              <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                {weeklyData.map((_, i) => (
+                  <rect key={i} fill="url(#vGrad)" />
+                ))}
+              </Bar>
               <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.6} />
+                <linearGradient id="vGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.5} />
                 </linearGradient>
               </defs>
             </BarChart>

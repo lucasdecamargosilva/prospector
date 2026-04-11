@@ -1,72 +1,94 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Pipeline" },
-  { to: "/leads", label: "Leads" },
-  { to: "/dashboard", label: "Dashboard" },
+  {
+    to: "/",
+    label: "Pipeline",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="1" y="2" width="4" height="12" rx="1" />
+        <rect x="6" y="5" width="4" height="9" rx="1" />
+        <rect x="11" y="8" width="4" height="6" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    to: "/leads",
+    label: "Leads",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="8" cy="5" r="3" />
+        <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      </svg>
+    ),
+  },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="1" y="1" width="6" height="6" rx="1.5" />
+        <rect x="9" y="1" width="6" height="3" rx="1.5" />
+        <rect x="9" y="6" width="6" height="9" rx="1.5" />
+        <rect x="1" y="9" width="6" height="6" rx="1.5" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Layout() {
   return (
-    <div className="flex h-screen bg-void text-white">
+    <div className="flex h-screen bg-base text-text">
       {/* Sidebar */}
-      <aside className="w-60 border-r border-border-subtle flex flex-col sidebar-gradient">
-        <div className="p-6 pb-8">
+      <aside className="w-[220px] border-r border-edge-subtle flex flex-col bg-raised">
+        {/* Brand */}
+        <div className="px-5 pt-6 pb-8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-fuchsia-500 flex items-center justify-center glow-accent">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1L14.5 4.5V11.5L8 15L1.5 11.5V4.5L8 1Z" stroke="white" strokeWidth="1.5" fill="none" />
-                <circle cx="8" cy="8" r="2.5" fill="white" opacity="0.9" />
-              </svg>
+            <div className="w-7 h-7 rounded-md bg-violet flex items-center justify-center">
+              <span className="text-white text-xs font-black tracking-tighter">PL</span>
             </div>
             <div>
-              <h1 className="font-display text-base font-bold tracking-tight">Prospector</h1>
-              <p className="text-[10px] text-muted font-medium tracking-widest uppercase">Provou Levou</p>
+              <p className="text-sm font-bold text-bright tracking-tight leading-none">Prospector</p>
+              <p className="text-[10px] text-dim mt-0.5 tracking-wide uppercase">Provou Levou</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 flex flex-col gap-1">
+        {/* Nav */}
+        <nav className="flex-1 px-3 space-y-0.5">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                   isActive
-                    ? "bg-gradient-to-r from-accent-dim/20 to-transparent text-white border border-border"
-                    : "text-muted hover:text-soft hover:bg-elevated/50 border border-transparent"
+                    ? "bg-violet/10 text-violet-light"
+                    : "text-muted hover:text-sub hover:bg-surface"
                 }`
               }
             >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
-                      isActive ? "bg-accent-bright scale-125" : "bg-muted/40 group-hover:bg-muted"
-                    }`}
-                  />
-                  <span className="font-display">{item.label}</span>
-                </>
-              )}
+              {item.icon}
+              {item.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 mx-3 mb-4 rounded-xl border border-border-subtle bg-surface/50">
-          <p className="text-[11px] text-muted leading-relaxed">
-            10-20 leads/dia recomendado para evitar bloqueio no Instagram.
+        {/* Footer */}
+        <div className="px-4 py-4 mx-3 mb-3 rounded-lg bg-surface border border-edge-subtle">
+          <p className="text-[11px] text-dim leading-relaxed">
+            Limite recomendado: 10-20 DMs por dia.
           </p>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="absolute top-0 right-0 w-[600px] h-[400px] pointer-events-none opacity-30"
-          style={{
-            background: "radial-gradient(ellipse at 80% 10%, rgba(139,92,246,0.08), transparent 60%)",
-          }}
+      {/* Main */}
+      <main className="flex-1 overflow-auto relative">
+        {/* Top ambient light */}
+        <div
+          className="fixed top-0 right-[15%] w-[500px] h-[300px] pointer-events-none opacity-[0.03]"
+          style={{ background: "radial-gradient(ellipse, #8b5cf6, transparent 70%)" }}
         />
         <Outlet />
       </main>

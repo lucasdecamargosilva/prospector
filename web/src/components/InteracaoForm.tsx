@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { INTERACAO_TIPOS } from "../types";
-import type { InteracaoTipo } from "../types";
+import type { InteracaoTipo, LeadStatus } from "../types";
 import { supabase } from "../lib/supabase";
 
 const TIPO_LABELS: Record<InteracaoTipo, string> = {
@@ -8,6 +8,11 @@ const TIPO_LABELS: Record<InteracaoTipo, string> = {
   resposta: "Resposta",
   follow_up: "Follow-up",
   nota: "Nota",
+};
+
+const AUTO_STATUS: Partial<Record<InteracaoTipo, LeadStatus>> = {
+  dm_enviada: "dm_enviada",
+  resposta: "respondeu",
 };
 
 interface Props {
@@ -23,13 +28,14 @@ export default function InteracaoForm({ leadId, onSaved }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!conteudo.trim()) return;
-
     setSaving(true);
-    await supabase.from("interacoes").insert({
-      lead_id: leadId,
-      tipo,
-      conteudo: conteudo.trim(),
-    });
+
+    await supabase.from("interacoes").insert({ lead_id: leadId, tipo, conteudo: conteudo.trim() });
+
+    const newStatus = AUTO_STATUS[tipo];
+    if (newStatus) {
+      await supabase.from("leads").update({ status: newStatus }).eq("id", leadId);
+    }
 
     setConteudo("");
     setSaving(false);
@@ -37,31 +43,27 @@ export default function InteracaoForm({ leadId, onSaved }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+    <form onSubmit={handleSubmit} className="flex gap-2 items-end">
       <select
         value={tipo}
         onChange={(e) => setTipo(e.target.value as InteracaoTipo)}
-        className="bg-abyss border border-border-subtle rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent-dim/40 transition-all text-soft"
+        className="bg-surface border border-edge-subtle rounded-lg px-2.5 py-2 text-xs text-sub focus:outline-none focus:border-violet/30 transition-all"
       >
-        {INTERACAO_TIPOS.map((t) => (
-          <option key={t} value={t}>
-            {TIPO_LABELS[t]}
-          </option>
-        ))}
+        {INTERACAO_TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
       </select>
       <input
         type="text"
         value={conteudo}
         onChange={(e) => setConteudo(e.target.value)}
-        placeholder="Descreva a interacao..."
-        className="flex-1 bg-abyss border border-border-subtle rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent-dim/40 focus:ring-1 focus:ring-accent-dim/15 transition-all placeholder:text-muted/40"
+        placeholder="Descreva..."
+        className="flex-1 bg-surface border border-edge-subtle rounded-lg px-3 py-2 text-xs text-text placeholder:text-dim/50 focus:outline-none focus:border-violet/30 focus:ring-1 focus:ring-violet/10 transition-all"
       />
       <button
         type="submit"
         disabled={saving || !conteudo.trim()}
-        className="bg-gradient-to-r from-accent-dim to-accent hover:from-accent hover:to-accent-bright disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 glow-accent"
+        className="bg-violet hover:bg-violet-deep disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"
       >
-        {saving ? "..." : "Adicionar"}
+        {saving ? "..." : "Salvar"}
       </button>
     </form>
   );
