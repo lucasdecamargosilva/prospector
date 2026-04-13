@@ -1,23 +1,19 @@
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
-# Copia tudo da pasta web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+
 COPY web/ ./
 
-# Instala dependencias
-RUN npm install
-
-# Build args para o Vite
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
-# Build
-RUN npm run build
+RUN npx vite build
 
-# Serve com nginx
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html

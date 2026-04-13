@@ -1,0 +1,11 @@
+node_modules
+web/node_modules
+web/dist
+.venv
+scraper
+docs
+__pycache__
+*.pyc
+.env
+web/.env
+.git
